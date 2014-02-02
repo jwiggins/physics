@@ -1,14 +1,14 @@
-local world, ballBody, groundBody, width, height
-local actors = {}
+local world, width, height
+local actors, colors = {}, {}
 
-local function newRectBody(kind, x, y, width, height, angle, mass, rest)
+local function newRectBody(kind, x, y, width, height, angle, mass, rest, frict)
     local body = love.physics.newBody(world, x, y, kind)
     local shape = love.physics.newRectangleShape(width, height)
     local fixture = love.physics.newFixture(body, shape, 1.0)
     body:setMass(mass or 1.0)
     body:setAngle(angle or 0.0)
     fixture:setRestitution(rest or 0.5)
-    fixture:setFriction(0.75)
+    fixture:setFriction(frict or 0.75)
 
     return body
 end
@@ -26,7 +26,7 @@ end
 local function collisionTargets()
     for i = 0, 8 do
         local x, y = 200, height-20-i*20
-        local body = newRectBody("dynamic", x, y, 30, 20, 0.0, 0.015, 0.6)
+        local body = newRectBody("dynamic", x, y, 30, 20, 0.0, 0.015, 0.1, 0.5)
         body:getFixtureList()[1]:setUserData({x, y-10})
         table.insert(actors, #actors+1, body)
     end
@@ -47,7 +47,8 @@ function love.load()
     love.physics.setMeter(64)
     world = love.physics.newWorld(0.0, 9.8*64, true)
 
-    groundBody = newRectBody("static", width/2, height-10, width, 20)
+    newRectBody("static", width/2, height-10, width, 20)
+    newRectBody("static", 10, height/2, 20, height)
     groundArc(width/3, 10, width*2/3, height-20-width/3)
     collisionTargets()
 
@@ -71,9 +72,27 @@ function love.update(dt)
 end
 
 function love.draw()
-    love.graphics.push()
-    love.graphics.setColor(255, 0, 255, 128)
-    local x, y = groundBody:getPosition()
-    love.graphics.rectangle("fill", x-width/2, y-10, width, 20)
-    love.graphics.pop()
+    local g = love.graphics
+    local c = 1
+
+    for bk, bv in pairs(world:getBodyList()) do
+        g.push()
+        g.translate(bv:getPosition())
+        g.rotate(bv:getAngle())
+        if not colors[c] then
+            colors[c] = {math.random(10,255),math.random(10,255),math.random(10,255)}
+        end
+        g.setColor(unpack(colors[c]))
+        for fk, fv in pairs(bv:getFixtureList()) do
+            local s = fv:getShape()
+            local st = s:getType()
+            if st == "circle" then
+                g.circle("fill", 0, 0, s:getRadius())
+            elseif st == "polygon" then
+                g.polygon("fill", s:getPoints())
+            end
+        end
+        g.pop()
+        c = c + 1
+    end
 end
